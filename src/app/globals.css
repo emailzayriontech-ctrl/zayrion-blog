@@ -1,26 +1,105 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Dark premium - default */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 212 100% 56%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 200 100% 65%;
+
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 212 100% 56%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 212 100% 56%;
+
+    /* Light surface tokens (for pricing & solution sections) */
+    --surface-light: 220 20% 97%;
+    --surface-light-foreground: 0 0% 8%;
+    --surface-light-muted: 220 14% 50%;
+    --surface-light-border: 220 13% 90%;
+    --surface-light-card: 0 0% 100%;
+
+    --radius: 0.75rem;
+
+    --gradient-cta: linear-gradient(135deg, hsl(212 100% 56%), hsl(200 100% 65%));
+    --gradient-final: radial-gradient(120% 80% at 50% 0%, hsl(212 100% 18% / 0.5), transparent 60%), linear-gradient(180deg, hsl(0 0% 5%), hsl(0 0% 3%));
+    --shadow-blue: 0 10px 40px -10px hsl(212 100% 56% / 0.4);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4 { letter-spacing: -0.02em; }
+}
+
+@layer components {
+  .container-tight { @apply max-w-6xl mx-auto px-6; }
+  .eyebrow { @apply text-xs font-semibold tracking-[0.2em] uppercase text-primary; }
+  .section { @apply py-16 md:py-32; }
+  .reveal { animation: fadeUp 0.7s ease-out both; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float { animation: float 3s ease-in-out infinite; }
+
+@layer utilities {
+  .footer-link {
+    @apply relative text-muted-foreground transition-colors duration-300 hover:text-primary;
+  }
+  .footer-link::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 h-[1px] w-0 bg-primary transition-all duration-300;
+  }
+  .footer-link:hover::after {
+    @apply w-full;
+  }
+
+  .animated-divider {
+    @apply relative h-[1px] w-full overflow-hidden bg-white/10;
+  }
+  .animated-divider::after {
+    content: '';
+    @apply absolute h-full w-1/3 bg-gradient-to-r from-transparent via-primary/40 to-transparent;
+    animation: slideDivider 4s infinite linear;
+  }
+
+  @keyframes slideDivider {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
+  }
 }
