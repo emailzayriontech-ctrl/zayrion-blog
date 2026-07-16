@@ -1,33 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronRight, Plus, Trash2, Copy, ArrowLeft } from "lucide-react";
+import { ChevronRight, Plus, Trash2, Copy, ArrowLeft, GripVertical, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 type ContentBlock = {
   id: string;
-  type: "h2" | "h3" | "p";
+  type: "h2" | "h3" | "h4" | "p" | "ul" | "faq";
   value: string;
+  question?: string;
+  answer?: string;
 };
 
 export default function AdminBlogDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
 
+  const [category, setCategory] = useState("blog");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [excerpt, setExcerpt] = useState("");
   const [date, setDate] = useState(() => {
     const today = new Date();
     return today.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
   });
+
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
+  const [targetLocation, setTargetLocation] = useState("");
+  const [featuredSnippet, setFeaturedSnippet] = useState("");
+  const [targetWords, setTargetWords] = useState(1000);
   
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+
+  // Calculate total words
+  const wordCount = useMemo(() => {
+    let text = `${title} ${metaTitle} ${metaDescription} ${featuredSnippet} `;
+    blocks.forEach(b => {
+      if (b.type === "faq") {
+        text += `${b.question} ${b.answer} `;
+      } else {
+        text += `${b.value} `;
+      }
+    });
+    // Count words (splitting by whitespace and filtering empty strings)
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+    return words.length;
+  }, [title, metaTitle, metaDescription, featuredSnippet, blocks]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,36 +61,70 @@ export default function AdminBlogDashboard() {
     }
   };
 
-  const addBlock = (type: "h2" | "h3" | "p") => {
-    setBlocks([...blocks, { id: Math.random().toString(36).substr(2, 9), type, value: "" }]);
+  const addBlock = (type: ContentBlock["type"]) => {
+    setBlocks([...blocks, { id: Math.random().toString(36).substr(2, 9), type, value: "", question: "", answer: "" }]);
   };
 
-  const updateBlock = (id: string, value: string) => {
-    setBlocks(blocks.map(b => b.id === id ? { ...b, value } : b));
+  const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
+    setBlocks(blocks.map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
   const removeBlock = (id: string) => {
     setBlocks(blocks.filter(b => b.id !== id));
   };
 
+  const moveBlock = (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index > 0) {
+      const newBlocks = [...blocks];
+      [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+      setBlocks(newBlocks);
+    } else if (direction === "down" && index < blocks.length - 1) {
+      const newBlocks = [...blocks];
+      [newBlocks[index + 1], newBlocks[index]] = [newBlocks[index], newBlocks[index + 1]];
+      setBlocks(newBlocks);
+    }
+  };
+
   const generateHTML = () => {
     return blocks.map(b => {
-      if (!b.value.trim()) return "";
-      if (b.type === "h2") return `      <h2>${b.value}</h2>`;
-      if (b.type === "h3") return `      <h3>${b.value}</h3>`;
-      return `      <p>${b.value}</p>`;
+      if (b.type === "h2" && b.value.trim()) return `      <h2>${b.value}</h2>`;
+      if (b.type === "h3" && b.value.trim()) return `      <h3>${b.value}</h3>`;
+      if (b.type === "h4" && b.value.trim()) return `      <h4>${b.value}</h4>`;
+      if (b.type === "p" && b.value.trim()) return `      <p>${b.value}</p>`;
+      if (b.type === "ul" && b.value.trim()) {
+        const listItems = b.value.split('\n').filter(line => line.trim() !== '').map(line => `        <li>${line.trim()}</li>`).join('\n');
+        if (!listItems) return "";
+        return `      <ul>\n${listItems}\n      </ul>`;
+      }
+      if (b.type === "faq" && b.question?.trim() && b.answer?.trim()) {
+        return `      <div className="faq-item">\n        <h4>${b.question}</h4>\n        <p>${b.answer}</p>\n      </div>`;
+      }
+      return "";
     }).filter(Boolean).join("\n");
   };
 
   const generateJSONCode = () => {
     const htmlContent = generateHTML();
+    
+    // Extract FAQs for Schema
+    const faqBlocks = blocks.filter(b => b.type === "faq" && b.question?.trim() && b.answer?.trim());
+    const faqSchema = faqBlocks.map(b => ({
+      question: b.question,
+      answer: b.answer
+    }));
+
     const data = {
       id: Date.now(),
       slug: slug || "slug-artikel-baru",
+      category: category || "blog",
       title: title || "Judul Artikel",
-      excerpt: excerpt || "Deskripsi singkat SEO",
+      metaTitle: metaTitle || title || "Judul Artikel",
+      metaDescription: metaDescription || "Deskripsi singkat SEO",
+      targetLocation: targetLocation || "",
+      featuredSnippet: featuredSnippet || "",
       date: date,
-      content: `\n${htmlContent}\n    `
+      content: `\n${htmlContent}\n    `,
+      faqSchema: faqSchema.length > 0 ? faqSchema : undefined,
     };
     return JSON.stringify(data, null, 2);
   };
@@ -132,17 +189,39 @@ export default function AdminBlogDashboard() {
         <div className="space-y-8">
           
           <div className="bg-card border rounded-2xl p-6 space-y-6">
-            <h2 className="text-lg font-bold mb-4 border-b pb-2">Informasi Utama Artikel</h2>
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">1. Informasi Utama (SEO Dasar)</h2>
             
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Kategori URL</Label>
+                <Input 
+                  id="category" 
+                  placeholder="jasa-desain" 
+                  value={category}
+                  onChange={(e) => setCategory(handleSlugify(e.target.value))}
+                />
+                <p className="text-[10px] text-muted-foreground">Struktur: domain.com/blog/<strong>{category || "kategori"}</strong>/{slug || "slug"}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date">Tanggal</Label>
+                <Input 
+                  id="date" 
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="title">Judul (H1)</Label>
+              <Label htmlFor="title">Judul Utama (H1)</Label>
               <Input 
                 id="title" 
-                placeholder="Cara Meningkatkan Konversi Website..." 
+                placeholder="Jasa Desain Grafis Terbaik di Jakarta" 
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
                   if (!slug) setSlug(handleSlugify(e.target.value));
+                  if (!metaTitle) setMetaTitle(e.target.value);
                 }}
               />
             </div>
@@ -151,76 +230,163 @@ export default function AdminBlogDashboard() {
               <Label htmlFor="slug">Slug (URL)</Label>
               <Input 
                 id="slug" 
-                placeholder="cara-meningkatkan-konversi" 
+                placeholder="jasa-desain-grafis-terbaik-di-jakarta" 
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">URL akan menjadi: zayriontech.com/blog/{slug}</p>
+            </div>
+          </div>
+
+          <div className="bg-card border rounded-2xl p-6 space-y-6">
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">2. Optimasi GEO & AEO</h2>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="targetLocation">Target Lokasi (GEO SEO)</Label>
+                <Input 
+                  id="targetLocation" 
+                  placeholder="Jakarta Pusat, Indonesia" 
+                  value={targetLocation}
+                  onChange={(e) => setTargetLocation(e.target.value)}
+                />
+                <p className="text-[10px] text-muted-foreground">Opsional. Untuk penargetan audiens lokal.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="targetWords">Target Jumlah Kata</Label>
+                <Input 
+                  id="targetWords" 
+                  type="number"
+                  value={targetWords}
+                  onChange={(e) => setTargetWords(parseInt(e.target.value) || 1000)}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="excerpt">Meta SEO Deskripsi & Excerpt</Label>
-              <Textarea 
-                id="excerpt" 
-                rows={3}
-                placeholder="Penjelasan singkat tentang artikel untuk ditampilkan di Google dan list blog..." 
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
+              <Label htmlFor="metaTitle">Meta Title</Label>
+              <Input 
+                id="metaTitle" 
+                placeholder="Sertakan Brand/Lokasi. Cth: Jasa Desain Jakarta | Zayrion" 
+                value={metaTitle}
+                onChange={(e) => setMetaTitle(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="date">Tanggal</Label>
-              <Input 
-                id="date" 
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+              <Label htmlFor="metaDescription">Meta Description</Label>
+              <Textarea 
+                id="metaDescription" 
+                rows={2}
+                placeholder="Rangkuman menarik max 160 karakter untuk ditampilkan di Google..." 
+                value={metaDescription}
+                onChange={(e) => setMetaDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 p-4 bg-primary/5 rounded-xl border border-primary/20">
+              <Label htmlFor="featuredSnippet" className="text-primary font-bold">Paragraf Pembuka (Featured Snippet / AEO)</Label>
+              <p className="text-[10px] text-muted-foreground mb-2">Jawaban ringkas (30-50 kata) langsung di awal artikel yang merangkum keseluruhan isi. Sangat disukai AI Search Engine.</p>
+              <Textarea 
+                id="featuredSnippet" 
+                rows={3}
+                placeholder="Kami adalah penyedia jasa desain grafis di Jakarta yang berfokus pada..." 
+                value={featuredSnippet}
+                onChange={(e) => setFeaturedSnippet(e.target.value)}
+                className="bg-background"
               />
             </div>
           </div>
 
           <div className="bg-card border rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6 border-b pb-2">
-              <h2 className="text-lg font-bold">Konten Artikel</h2>
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between mb-6 border-b pb-4">
+              <h2 className="text-lg font-bold">3. Konten Artikel</h2>
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => addBlock("h2")}><Plus className="w-4 h-4 mr-1"/> H2</Button>
                 <Button size="sm" variant="outline" onClick={() => addBlock("h3")}><Plus className="w-4 h-4 mr-1"/> H3</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("h4")}><Plus className="w-4 h-4 mr-1"/> H4</Button>
                 <Button size="sm" variant="default" onClick={() => addBlock("p")}><Plus className="w-4 h-4 mr-1"/> Teks</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("ul")} className="bg-zinc-100 dark:bg-zinc-800"><Plus className="w-4 h-4 mr-1"/> List</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("faq")} className="border-primary/50 text-primary hover:bg-primary/10"><Plus className="w-4 h-4 mr-1"/> FAQ</Button>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               {blocks.length === 0 && (
-                <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
-                  Belum ada konten. Tambahkan H2, H3, atau Teks paragraf di atas.
+                <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground flex flex-col items-center justify-center">
+                  <p>Belum ada blok konten.</p>
+                  <p className="text-sm">Gunakan tombol di atas untuk menyusun hierarki artikel yang rapi.</p>
                 </div>
               )}
               {blocks.map((block, index) => (
-                <div key={block.id} className="flex gap-3 group relative">
-                  <div className="w-16 shrink-0 pt-2 text-xs font-bold text-muted-foreground uppercase text-right">
+                <div key={block.id} className="flex gap-3 group relative bg-background border p-4 rounded-xl shadow-sm hover:border-primary/30 transition-colors">
+                  <div className="flex flex-col gap-2 items-center justify-center cursor-move text-muted-foreground/30 hover:text-muted-foreground">
+                    <button onClick={() => moveBlock(index, "up")} disabled={index === 0} className="disabled:opacity-20 hover:text-primary">↑</button>
+                    <GripVertical className="w-4 h-4" />
+                    <button onClick={() => moveBlock(index, "down")} disabled={index === blocks.length - 1} className="disabled:opacity-20 hover:text-primary">↓</button>
+                  </div>
+                  
+                  <div className="w-12 shrink-0 pt-2 text-[10px] font-bold text-primary/70 uppercase text-center bg-primary/5 h-min px-1 py-1 rounded">
                     {block.type}
                   </div>
-                  <div className="flex-1 relative">
-                    {block.type === 'p' ? (
+
+                  <div className="flex-1 relative space-y-2">
+                    {block.type === 'p' && (
                       <Textarea 
                         value={block.value}
-                        onChange={(e) => updateBlock(block.id, e.target.value)}
+                        onChange={(e) => updateBlock(block.id, { value: e.target.value })}
                         placeholder="Ketik paragraf di sini..."
                         rows={4}
-                        className="w-full resize-y"
-                      />
-                    ) : (
-                      <Input 
-                        value={block.value}
-                        onChange={(e) => updateBlock(block.id, e.target.value)}
-                        placeholder={`Ketik judul ${block.type.toUpperCase()} di sini...`}
-                        className="w-full font-bold"
+                        className="w-full resize-y border-muted-foreground/20"
                       />
                     )}
+                    {(block.type === 'h2' || block.type === 'h3' || block.type === 'h4') && (
+                      <Input 
+                        value={block.value}
+                        onChange={(e) => updateBlock(block.id, { value: e.target.value })}
+                        placeholder={`Ketik judul ${block.type.toUpperCase()} di sini...`}
+                        className={`w-full font-bold border-muted-foreground/20 ${block.type === 'h2' ? 'text-xl' : block.type === 'h3' ? 'text-lg' : 'text-base'}`}
+                      />
+                    )}
+                    {block.type === 'ul' && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase">Setiap baris baru akan menjadi poin (bullet point)</p>
+                        <Textarea 
+                          value={block.value}
+                          onChange={(e) => updateBlock(block.id, { value: e.target.value })}
+                          placeholder="Poin 1&#10;Poin 2&#10;Poin 3..."
+                          rows={4}
+                          className="w-full resize-y font-mono text-sm border-muted-foreground/20"
+                        />
+                      </div>
+                    )}
+                    {block.type === 'faq' && (
+                      <div className="space-y-3 bg-card p-3 rounded-lg border border-dashed">
+                        <div>
+                          <Label className="text-xs">Pertanyaan (Q)</Label>
+                          <Input 
+                            value={block.question || ''}
+                            onChange={(e) => updateBlock(block.id, { question: e.target.value })}
+                            placeholder="Tulis pertanyaan..."
+                            className="w-full font-medium"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Jawaban (A)</Label>
+                          <Textarea 
+                            value={block.answer || ''}
+                            onChange={(e) => updateBlock(block.id, { answer: e.target.value })}
+                            placeholder="Tulis jawaban lengkap..."
+                            rows={3}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <Button 
                       variant="destructive" 
                       size="icon" 
-                      className="absolute -right-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10"
+                      className="absolute -right-3 -top-3 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full shadow-sm"
                       onClick={() => removeBlock(block.id)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -233,23 +399,62 @@ export default function AdminBlogDashboard() {
           
         </div>
 
-        {/* Right Column: Code Generator output */}
+        {/* Right Column: Code Generator output & Stats */}
         <div className="space-y-6">
-          <div className="bg-card border rounded-2xl p-6 sticky top-24 shadow-lg shadow-primary/5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold">Generated JSON</h3>
-              <Button size="sm" onClick={handleCopy} className="gap-2">
-                <Copy className="w-4 h-4" /> Copy Code
-              </Button>
+          <div className="bg-card border rounded-2xl p-6 sticky top-24 shadow-lg shadow-primary/5 space-y-6">
+            
+            {/* Word Counter */}
+            <div className="bg-background rounded-xl p-4 border space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold">Total Kata</span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Target: {targetWords}
+                </span>
+              </div>
+              <div className="flex items-end gap-2">
+                <span className={`text-3xl font-display font-bold ${wordCount >= targetWords ? 'text-green-500' : 'text-primary'}`}>
+                  {wordCount}
+                </span>
+                <span className="text-sm text-muted-foreground pb-1">kata</span>
+              </div>
+              
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-500 ${wordCount >= targetWords ? 'bg-green-500' : 'bg-primary'}`} 
+                  style={{ width: `${Math.min((wordCount / targetWords) * 100, 100)}%` }}
+                />
+              </div>
+              
+              {wordCount >= targetWords && (
+                <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Target tercapai! Konten optimal.
+                </div>
+              )}
+              {wordCount < targetWords && (
+                <div className="text-[10px] text-muted-foreground text-center">
+                  Butuh {targetWords - wordCount} kata lagi untuk mencapai target.
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mb-4">
-              Copy kode di bawah ini, buat file baru dengan nama <code className="bg-muted px-1 rounded">{slug || "judul"}.json</code> di dalam folder <code className="bg-muted px-1 rounded">src/data/blog/</code>, lalu paste kodenya di sana. Jangan lupa tambahkan import-nya di <code className="bg-muted px-1 rounded">src/data/blog/index.ts</code> (Hanya untuk versi non-Next.js). Untuk Next.js, cukup buat file JSON ini.
-            </p>
-            <div className="bg-zinc-950 rounded-xl p-4 overflow-x-auto">
-              <pre className="text-xs text-green-400 font-mono leading-relaxed">
-                {generateJSONCode()}
-              </pre>
+
+            {/* Generated JSON */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold">Generated JSON</h3>
+                <Button size="sm" onClick={handleCopy} className="gap-2">
+                  <Copy className="w-4 h-4" /> Copy Code
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mb-4 leading-relaxed">
+                Buat file baru bernama <code className="bg-muted px-1 py-0.5 rounded text-foreground">{slug || "judul"}.json</code> di dalam folder data blog Anda, lalu paste kode di bawah.
+              </p>
+              <div className="bg-zinc-950 rounded-xl p-4 overflow-x-auto max-h-[400px]">
+                <pre className="text-[10px] text-green-400 font-mono leading-relaxed">
+                  {generateJSONCode()}
+                </pre>
+              </div>
             </div>
+
           </div>
         </div>
 
