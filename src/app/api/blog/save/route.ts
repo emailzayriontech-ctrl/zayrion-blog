@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { sql } from '@vercel/postgres';
 
 export async function POST(request: Request) {
   try {
@@ -10,21 +9,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
     }
 
-    // Tentukan direktori penyimpanan
-    const dirPath = path.join(process.cwd(), 'src', 'data', 'blog');
-    const filePath = path.join(dirPath, `${data.slug}.json`);
+    // Pastikan tabel blogs ada
+    await sql`
+      CREATE TABLE IF NOT EXISTS blogs (
+        slug VARCHAR(255) PRIMARY KEY,
+        data JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
 
-    // Pastikan direktori ada
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
+    // Upsert (Insert or Update)
+    const jsonData = JSON.stringify(data);
+    await sql`
+      INSERT INTO blogs (slug, data)
+      VALUES (${data.slug}, ${jsonData}::jsonb)
+      ON CONFLICT (slug) DO UPDATE
+      SET data = EXCLUDED.data;
+    `;
 
-    // Tulis ke file JSON
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-
-    return NextResponse.json({ success: true, message: 'Saved successfully' });
+    return NextResponse.json({ success: true, message: 'Saved successfully to Database' });
   } catch (error) {
-    console.error('Error saving blog data:', error);
-    return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
+    console.error('Error saving blog data to DB:', error);
+    return NextResponse.json({ error: 'Failed to save data to database' }, { status: 500 });
   }
 }

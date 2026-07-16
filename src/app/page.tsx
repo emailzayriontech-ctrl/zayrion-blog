@@ -4,8 +4,8 @@ import { getAllPosts } from "@/data/blog";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function BlogList() {
-  const articles = getAllPosts();
+export default async function BlogList() {
+  const articles = await getAllPosts();
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar />

@@ -1,25 +1,15 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { sql } from '@vercel/postgres';
 
 export async function GET() {
   try {
-    const dirPath = path.join(process.cwd(), 'src', 'data', 'blog');
+    const result = await sql`SELECT data FROM blogs`;
     
-    if (!fs.existsSync(dirPath)) {
-      return NextResponse.json({ blogs: [] });
-    }
-
-    const files = fs.readdirSync(dirPath).filter(file => file.endsWith('.json'));
-    
-    const blogs = files.map(file => {
-      const filePath = path.join(dirPath, file);
-      const content = fs.readFileSync(filePath, 'utf8');
-      const data = JSON.parse(content);
-      
+    const blogs = result.rows.map(row => {
+      const data = row.data;
       return {
         id: data.id || Date.now(),
-        slug: data.slug || file.replace('.json', ''),
+        slug: data.slug,
         title: data.title || 'Untitled',
         category: data.category || 'blog',
         status: data.status || 'Draft',
@@ -32,8 +22,11 @@ export async function GET() {
     blogs.sort((a, b) => b.id - a.id);
 
     return NextResponse.json({ blogs });
-  } catch (error) {
-    console.error('Error fetching blog list:', error);
+  } catch (error: any) {
+    if (error.message && error.message.includes('relation "blogs" does not exist')) {
+      return NextResponse.json({ blogs: [] });
+    }
+    console.error('Error fetching blog list from DB:', error);
     return NextResponse.json({ error: 'Failed to fetch blogs' }, { status: 500 });
   }
 }

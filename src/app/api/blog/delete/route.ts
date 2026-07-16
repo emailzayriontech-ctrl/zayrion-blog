@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { sql } from '@vercel/postgres';
 
 export async function DELETE(request: Request) {
   try {
@@ -11,17 +10,18 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
     }
 
-    const dirPath = path.join(process.cwd(), 'src', 'data', 'blog');
-    const filePath = path.join(dirPath, `${slug}.json`);
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    const result = await sql`DELETE FROM blogs WHERE slug = ${slug}`;
+    
+    if (result.rowCount && result.rowCount > 0) {
       return NextResponse.json({ success: true, message: 'Blog deleted successfully' });
     } else {
       return NextResponse.json({ error: 'Blog not found' }, { status: 404 });
     }
-  } catch (error) {
-    console.error('Error deleting blog:', error);
+  } catch (error: any) {
+    if (error.message && error.message.includes('relation "blogs" does not exist')) {
+      return NextResponse.json({ error: 'Blog not found' }, { status: 404 });
+    }
+    console.error('Error deleting blog from DB:', error);
     return NextResponse.json({ error: 'Failed to delete blog' }, { status: 500 });
   }
 }

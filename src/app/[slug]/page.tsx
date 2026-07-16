@@ -11,7 +11,7 @@ type Props = {
 };
 
 export async function generateStaticParams() {
-  const articles = getAllPosts();
+  const articles = await getAllPosts();
   return articles.map((article) => ({
     slug: article.slug,
   }));
@@ -21,7 +21,7 @@ export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const article = getPostBySlug(params.slug);
+  const article = await getPostBySlug(params.slug);
   
   if (!article) return { title: 'Not Found' };
   
@@ -50,8 +50,8 @@ export async function generateMetadata(
   };
 }
 
-export default function BlogPost({ params }: Props) {
-  const article = getPostBySlug(params.slug);
+export default async function BlogPost({ params }: Props) {
+  const article = await getPostBySlug(params.slug);
 
   if (!article) {
     notFound();

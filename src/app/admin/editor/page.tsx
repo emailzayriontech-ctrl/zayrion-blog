@@ -295,18 +295,25 @@ function EditorForm() {
     return JSON.stringify(generateDataObj(), null, 2);
   };
 
-  const saveToServer = async (isAutoSave = false) => {
+  const saveToServer = async (isAutoSave = false, targetStatus?: string) => {
     if (!slug) {
       if (!isAutoSave) toast.error("Slug (URL) tidak boleh kosong untuk menyimpan!");
       return;
     }
     
+    if (targetStatus && targetStatus !== status) {
+      setStatus(targetStatus);
+    }
+    
     if (!isAutoSave) setIsSaving(true);
     try {
+      const dataToSave = generateDataObj();
+      if (targetStatus) dataToSave.status = targetStatus;
+      
       const res = await fetch('/api/blog/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(generateDataObj())
+        body: JSON.stringify(dataToSave)
       });
       const result = await res.json();
       
@@ -352,10 +359,13 @@ function EditorForm() {
             </Link>
             <span className="text-primary">Admin</span> Editor
           </div>
-          <div className="flex items-center gap-4">
-            {lastSaved && <span className="text-xs text-muted-foreground hidden sm:inline-block">Auto-saved at {lastSaved}</span>}
-            <Button onClick={() => saveToServer()} disabled={isSaving} className="gap-2" size="sm">
-              <Globe className="w-4 h-4" /> {isSaving ? "Menyimpan..." : "Publish / Save"}
+          <div className="flex items-center gap-2">
+            {lastSaved && <span className="text-xs text-muted-foreground hidden sm:inline-block mr-2">Auto-saved at {lastSaved}</span>}
+            <Button onClick={() => saveToServer(false, 'Draft')} disabled={isSaving} variant="secondary" size="sm" className="gap-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100">
+              <Save className="w-4 h-4" /> {isSaving ? "Menyimpan..." : "Simpan Draft"}
+            </Button>
+            <Button onClick={() => saveToServer(false, 'Published')} disabled={isSaving} size="sm" className="gap-2">
+              <Globe className="w-4 h-4" /> {isSaving ? "Mem-publish..." : "Publish"}
             </Button>
           </div>
         </div>
@@ -369,13 +379,12 @@ function EditorForm() {
           <div className="bg-card border rounded-2xl p-6 space-y-6">
             <div className="flex items-center justify-between border-b pb-2 mb-4">
               <h2 className="text-lg font-bold">1. Informasi Utama (Setup & Metadata)</h2>
-              <div className="flex gap-2">
-                <select className="text-sm border rounded-md px-2 py-1" value={status} onChange={e => setStatus(e.target.value)}>
-                  <option value="Draft">Draft</option>
-                  <option value="Review">Review</option>
-                  <option value="Published">Published</option>
-                </select>
-              </div>
+              <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                status === 'Published' ? 'bg-green-100 text-green-700' :
+                'bg-zinc-100 text-zinc-700'
+              }`}>
+                {status}
+              </span>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
