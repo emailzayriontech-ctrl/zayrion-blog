@@ -6,15 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronRight, Plus, Trash2, Copy, ArrowLeft, GripVertical, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Plus, Trash2, Copy, ArrowLeft, GripVertical, CheckCircle2, Save, Globe } from "lucide-react";
 import Link from "next/link";
 
 type ContentBlock = {
   id: string;
-  type: "h2" | "h3" | "h4" | "p" | "ul" | "faq";
+  type: "h2" | "h3" | "h4" | "p" | "ul" | "faq" | "image" | "table";
   value: string;
   question?: string;
   answer?: string;
+  alt?: string;
+  rows?: string[][]; // For table
 };
 
 export default function AdminBlogDashboard() {
@@ -29,49 +31,92 @@ export default function AdminBlogDashboard() {
     return today.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
   });
 
+  const [status, setStatus] = useState("Draft");
+  const [author, setAuthor] = useState("Admin");
+
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [targetLocation, setTargetLocation] = useState("");
   const [featuredSnippet, setFeaturedSnippet] = useState("");
   const [targetWords, setTargetWords] = useState(1000);
   
+  const [focusKeyword, setFocusKeyword] = useState("");
+  const [canonicalUrl, setCanonicalUrl] = useState("");
+  const [featuredImage, setFeaturedImage] = useState("");
+  const [brandName, setBrandName] = useState("Zayrion Tech");
+
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  // Auto-save debouncer
+  useEffect(() => {
+    if (!isAuthenticated || !slug) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveToServer(true); // Auto-save silently
+    }, 5000); // Auto save 5 seconds after last change
+
+    return () => clearTimeout(timeoutId);
+  }, [category, title, slug, status, author, metaTitle, metaDescription, targetLocation, featuredSnippet, focusKeyword, canonicalUrl, featuredImage, brandName, blocks]);
 
   // Calculate total words
   const wordCount = useMemo(() => {
-    let text = `${title} ${metaTitle} ${metaDescription} ${featuredSnippet} `;
+    let text = `${title} ${metaTitle} ${metaDescription} ${featuredSnippet} ${focusKeyword} `;
     blocks.forEach(b => {
-      if (b.type === "faq") {
-        text += `${b.question} ${b.answer} `;
-      } else {
-        text += `${b.value} `;
+      if (b.type === "faq") text += `${b.question} ${b.answer} `;
+      else if (b.type === "table" && b.rows) {
+        b.rows.forEach(r => text += r.join(" ") + " ");
       }
+      else text += `${b.value} `;
     });
-    // Count words (splitting by whitespace and filtering empty strings)
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
     return words.length;
-  }, [title, metaTitle, metaDescription, featuredSnippet, blocks]);
+  }, [title, metaTitle, metaDescription, featuredSnippet, focusKeyword, blocks]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "zayrionadmin") {
-      setIsAuthenticated(true);
-    } else {
-      toast.error("Password salah!");
-    }
+    if (password === "zayrionadmin") setIsAuthenticated(true);
+    else toast.error("Password salah!");
   };
 
   const addBlock = (type: ContentBlock["type"]) => {
-    setBlocks([...blocks, { id: Math.random().toString(36).substr(2, 9), type, value: "", question: "", answer: "" }]);
+    const newBlock: ContentBlock = { id: Math.random().toString(36).substr(2, 9), type, value: "" };
+    if (type === "table") {
+      newBlock.rows = [["Header 1", "Header 2"], ["Data 1", "Data 2"]]; // default 2x2 table
+    }
+    setBlocks([...blocks, newBlock]);
   };
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
     setBlocks(blocks.map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
-  const removeBlock = (id: string) => {
-    setBlocks(blocks.filter(b => b.id !== id));
+  const updateTableData = (id: string, rIndex: number, cIndex: number, val: string) => {
+    setBlocks(blocks.map(b => {
+      if (b.id !== id || !b.rows) return b;
+      const newRows = [...b.rows];
+      newRows[rIndex][cIndex] = val;
+      return { ...b, rows: newRows };
+    }));
   };
+
+  const addTableRow = (id: string) => {
+    setBlocks(blocks.map(b => {
+      if (b.id !== id || !b.rows) return b;
+      const colCount = b.rows[0].length;
+      return { ...b, rows: [...b.rows, Array(colCount).fill("Data")] };
+    }));
+  };
+
+  const addTableCol = (id: string) => {
+    setBlocks(blocks.map(b => {
+      if (b.id !== id || !b.rows) return b;
+      return { ...b, rows: b.rows.map((row, i) => [...row, i === 0 ? "Header" : "Data"]) };
+    }));
+  };
+
+  const removeBlock = (id: string) => setBlocks(blocks.filter(b => b.id !== id));
 
   const moveBlock = (index: number, direction: "up" | "down") => {
     if (direction === "up" && index > 0) {
@@ -99,11 +144,32 @@ export default function AdminBlogDashboard() {
       if (b.type === "faq" && b.question?.trim() && b.answer?.trim()) {
         return `      <div className="faq-item">\n        <h4>${b.question}</h4>\n        <p>${b.answer}</p>\n      </div>`;
       }
+      if (b.type === "image" && b.value.trim()) {
+        return `      <figure>\n        <img src="${b.value}" alt="${b.alt || 'Image'}" className="w-full h-auto rounded-xl" />\n      </figure>`;
+      }
+      if (b.type === "table" && b.rows && b.rows.length > 0) {
+        const header = b.rows[0];
+        const body = b.rows.slice(1);
+        let tableHtml = `      <div className="overflow-x-auto my-6">\n        <table className="w-full text-left border-collapse">\n`;
+        if (header.length > 0) {
+          tableHtml += `          <thead>\n            <tr className="bg-muted">\n`;
+          header.forEach(h => { tableHtml += `              <th className="border p-3 font-bold">${h}</th>\n` });
+          tableHtml += `            </tr>\n          </thead>\n`;
+        }
+        tableHtml += `          <tbody>\n`;
+        body.forEach(row => {
+          tableHtml += `            <tr>\n`;
+          row.forEach(col => { tableHtml += `              <td className="border p-3">${col}</td>\n` });
+          tableHtml += `            </tr>\n`;
+        });
+        tableHtml += `          </tbody>\n        </table>\n      </div>`;
+        return tableHtml;
+      }
       return "";
     }).filter(Boolean).join("\n");
   };
 
-  const generateJSONCode = () => {
+  const generateDataObj = () => {
     const htmlContent = generateHTML();
     
     // Extract FAQs for Schema
@@ -113,25 +179,84 @@ export default function AdminBlogDashboard() {
       answer: b.answer
     }));
 
-    const data = {
+    let schemas: any = {};
+    if (faqSchema.length > 0) {
+      schemas.faq = faqSchema;
+    }
+    if (targetLocation) {
+      schemas.localBusiness = {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": brandName || "Zayrion Tech",
+        "image": featuredImage || "",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": targetLocation
+        }
+      };
+    }
+
+    const data: any = {
       id: Date.now(),
       slug: slug || "slug-artikel-baru",
       category: category || "blog",
+      status,
+      author,
       title: title || "Judul Artikel",
-      metaTitle: metaTitle || title || "Judul Artikel",
+      metaTitle: metaTitle || `${title} | ${brandName}`,
       metaDescription: metaDescription || "Deskripsi singkat SEO",
-      targetLocation: targetLocation || "",
-      featuredSnippet: featuredSnippet || "",
+      focusKeyword,
+      canonicalUrl,
+      targetLocation,
+      featuredSnippet,
+      featuredImage,
+      brandName,
       date: date,
       content: `\n${htmlContent}\n    `,
-      faqSchema: faqSchema.length > 0 ? faqSchema : undefined,
     };
-    return JSON.stringify(data, null, 2);
+
+    if (Object.keys(schemas).length > 0) {
+      data.schemas = schemas;
+    }
+
+    return data;
+  };
+
+  const generateJSONCode = () => {
+    return JSON.stringify(generateDataObj(), null, 2);
+  };
+
+  const saveToServer = async (isAutoSave = false) => {
+    if (!slug) {
+      if (!isAutoSave) toast.error("Slug (URL) tidak boleh kosong untuk menyimpan!");
+      return;
+    }
+    
+    if (!isAutoSave) setIsSaving(true);
+    try {
+      const res = await fetch('/api/blog/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generateDataObj())
+      });
+      const result = await res.json();
+      
+      if (res.ok) {
+        setLastSaved(new Date().toLocaleTimeString());
+        if (!isAutoSave) toast.success("Berhasil disimpan ke server (Hosting)!");
+      } else {
+        if (!isAutoSave) toast.error("Gagal menyimpan: " + result.error);
+      }
+    } catch (error) {
+      if (!isAutoSave) toast.error("Terjadi kesalahan jaringan.");
+    } finally {
+      if (!isAutoSave) setIsSaving(false);
+    }
   };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generateJSONCode());
-    toast.success("Kode disalin! Buat file JSON baru di src/data/blog/");
+    toast.success("Kode disalin!");
   };
 
   const handleSlugify = (text: string) => {
@@ -148,13 +273,7 @@ export default function AdminBlogDashboard() {
             <p className="text-sm text-muted-foreground mt-2">Masukkan password untuk masuk ke Private Dashboard</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
-            <Input 
-              type="password" 
-              placeholder="Password..." 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoFocus
-            />
+            <Input type="password" placeholder="Password..." value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
             <Button type="submit" className="w-full">Login</Button>
             <div className="text-center pt-4">
               <Link href="/" className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-2">
@@ -177,9 +296,12 @@ export default function AdminBlogDashboard() {
           <div className="flex items-center gap-2 font-bold font-display">
             <span className="text-primary">Admin</span> Blog Editor
           </div>
-          <Link href="/" target="_blank" className="text-sm font-medium hover:text-primary flex items-center gap-1">
-            Lihat Blog <ChevronRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-4">
+            {lastSaved && <span className="text-xs text-muted-foreground">Auto-saved at {lastSaved}</span>}
+            <Button onClick={() => saveToServer()} disabled={isSaving} className="gap-2" size="sm">
+              <Globe className="w-4 h-4" /> {isSaving ? "Menyimpan..." : "Publish / Save ke Hosting"}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -189,111 +311,90 @@ export default function AdminBlogDashboard() {
         <div className="space-y-8">
           
           <div className="bg-card border rounded-2xl p-6 space-y-6">
-            <h2 className="text-lg font-bold mb-4 border-b pb-2">1. Informasi Utama (SEO Dasar)</h2>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Kategori URL</Label>
-                <Input 
-                  id="category" 
-                  placeholder="jasa-desain" 
-                  value={category}
-                  onChange={(e) => setCategory(handleSlugify(e.target.value))}
-                />
-                <p className="text-[10px] text-muted-foreground">Struktur: domain.com/blog/<strong>{category || "kategori"}</strong>/{slug || "slug"}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Tanggal</Label>
-                <Input 
-                  id="date" 
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+              <h2 className="text-lg font-bold">1. Informasi Utama (Setup & Metadata)</h2>
+              <div className="flex gap-2">
+                <select className="text-sm border rounded-md px-2 py-1" value={status} onChange={e => setStatus(e.target.value)}>
+                  <option value="Draft">Draft</option>
+                  <option value="Review">Review</option>
+                  <option value="Published">Published</option>
+                </select>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="title">Judul Utama (H1)</Label>
-              <Input 
-                id="title" 
-                placeholder="Jasa Desain Grafis Terbaik di Jakarta" 
-                value={title}
-                onChange={(e) => {
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-2 col-span-2">
+                <Label>Judul Utama (H1)</Label>
+                <Input placeholder="Jasa Desain..." value={title} onChange={(e) => {
                   setTitle(e.target.value);
                   if (!slug) setSlug(handleSlugify(e.target.value));
                   if (!metaTitle) setMetaTitle(e.target.value);
-                }}
-              />
+                }} />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Slug (URL)</Label>
+                <Input placeholder="jasa-desain" value={slug} onChange={(e) => setSlug(e.target.value)} />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Kategori URL</Label>
+                <Input placeholder="blog" value={category} onChange={(e) => setCategory(handleSlugify(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Tanggal</Label>
+                <Input value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Author</Label>
+                <Input value={author} onChange={(e) => setAuthor(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Brand Name</Label>
+                <Input value={brandName} onChange={(e) => setBrandName(e.target.value)} />
+              </div>
             </div>
-
+            
             <div className="space-y-2">
-              <Label htmlFor="slug">Slug (URL)</Label>
-              <Input 
-                id="slug" 
-                placeholder="jasa-desain-grafis-terbaik-di-jakarta" 
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-              />
+              <Label>Featured Image (Open Graph URL)</Label>
+              <Input placeholder="https://res.cloudinary.com/..." value={featuredImage} onChange={(e) => setFeaturedImage(e.target.value)} />
             </div>
           </div>
 
           <div className="bg-card border rounded-2xl p-6 space-y-6">
-            <h2 className="text-lg font-bold mb-4 border-b pb-2">2. Optimasi GEO & AEO</h2>
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">2. Optimasi SEO Lanjutan & GEO</h2>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="targetLocation">Target Lokasi (GEO SEO)</Label>
-                <Input 
-                  id="targetLocation" 
-                  placeholder="Jakarta Pusat, Indonesia" 
-                  value={targetLocation}
-                  onChange={(e) => setTargetLocation(e.target.value)}
-                />
-                <p className="text-[10px] text-muted-foreground">Opsional. Untuk penargetan audiens lokal.</p>
+                <Label>Focus Keyword</Label>
+                <Input placeholder="jasa desain grafis" value={focusKeyword} onChange={(e) => setFocusKeyword(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="targetWords">Target Jumlah Kata</Label>
-                <Input 
-                  id="targetWords" 
-                  type="number"
-                  value={targetWords}
-                  onChange={(e) => setTargetWords(parseInt(e.target.value) || 1000)}
-                />
+                <Label>Target Lokasi (GEO SEO)</Label>
+                <Input placeholder="Jakarta Pusat" value={targetLocation} onChange={(e) => setTargetLocation(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Target Kata</Label>
+                <Input type="number" value={targetWords} onChange={(e) => setTargetWords(parseInt(e.target.value) || 1000)} />
+              </div>
+              <div className="space-y-2 col-span-2 md:col-span-3">
+                <Label>Canonical URL (Opsional)</Label>
+                <Input placeholder="Kosongkan jika asli. Isi URL jika copas dari web lain." value={canonicalUrl} onChange={(e) => setCanonicalUrl(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="metaTitle">Meta Title</Label>
-              <Input 
-                id="metaTitle" 
-                placeholder="Sertakan Brand/Lokasi. Cth: Jasa Desain Jakarta | Zayrion" 
-                value={metaTitle}
-                onChange={(e) => setMetaTitle(e.target.value)}
-              />
+              <Label>Meta Title</Label>
+              <Input placeholder="Sertakan Brand/Lokasi" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="metaDescription">Meta Description</Label>
-              <Textarea 
-                id="metaDescription" 
-                rows={2}
-                placeholder="Rangkuman menarik max 160 karakter untuk ditampilkan di Google..." 
-                value={metaDescription}
-                onChange={(e) => setMetaDescription(e.target.value)}
-              />
+              <Label>Meta Description</Label>
+              <Textarea rows={2} placeholder="Rangkuman menarik max 160 karakter..." value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} />
             </div>
 
             <div className="space-y-2 p-4 bg-primary/5 rounded-xl border border-primary/20">
-              <Label htmlFor="featuredSnippet" className="text-primary font-bold">Paragraf Pembuka (Featured Snippet / AEO)</Label>
-              <p className="text-[10px] text-muted-foreground mb-2">Jawaban ringkas (30-50 kata) langsung di awal artikel yang merangkum keseluruhan isi. Sangat disukai AI Search Engine.</p>
-              <Textarea 
-                id="featuredSnippet" 
-                rows={3}
-                placeholder="Kami adalah penyedia jasa desain grafis di Jakarta yang berfokus pada..." 
-                value={featuredSnippet}
-                onChange={(e) => setFeaturedSnippet(e.target.value)}
-                className="bg-background"
-              />
+              <Label className="text-primary font-bold">Paragraf Pembuka (Featured Snippet / AEO)</Label>
+              <Textarea rows={3} placeholder="Jawaban ringkas (30-50 kata) langsung di awal artikel yang merangkum keseluruhan isi..." value={featuredSnippet} onChange={(e) => setFeaturedSnippet(e.target.value)} className="bg-background mt-2" />
             </div>
           </div>
 
@@ -301,20 +402,20 @@ export default function AdminBlogDashboard() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between mb-6 border-b pb-4">
               <h2 className="text-lg font-bold">3. Konten Artikel</h2>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => addBlock("h2")}><Plus className="w-4 h-4 mr-1"/> H2</Button>
-                <Button size="sm" variant="outline" onClick={() => addBlock("h3")}><Plus className="w-4 h-4 mr-1"/> H3</Button>
-                <Button size="sm" variant="outline" onClick={() => addBlock("h4")}><Plus className="w-4 h-4 mr-1"/> H4</Button>
-                <Button size="sm" variant="default" onClick={() => addBlock("p")}><Plus className="w-4 h-4 mr-1"/> Teks</Button>
-                <Button size="sm" variant="outline" onClick={() => addBlock("ul")} className="bg-zinc-100 dark:bg-zinc-800"><Plus className="w-4 h-4 mr-1"/> List</Button>
-                <Button size="sm" variant="outline" onClick={() => addBlock("faq")} className="border-primary/50 text-primary hover:bg-primary/10"><Plus className="w-4 h-4 mr-1"/> FAQ</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("h2")}>+ H2</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("h3")}>+ H3</Button>
+                <Button size="sm" variant="default" onClick={() => addBlock("p")}>+ Teks</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("ul")} className="bg-zinc-100 dark:bg-zinc-800">+ List</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("image")} className="border-blue-500 text-blue-600 hover:bg-blue-50">+ Gambar</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("table")} className="border-green-500 text-green-600 hover:bg-green-50">+ Tabel</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("faq")} className="border-primary/50 text-primary hover:bg-primary/10">+ FAQ</Button>
               </div>
             </div>
 
             <div className="space-y-6">
               {blocks.length === 0 && (
                 <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground flex flex-col items-center justify-center">
-                  <p>Belum ada blok konten.</p>
-                  <p className="text-sm">Gunakan tombol di atas untuk menyusun hierarki artikel yang rapi.</p>
+                  <p>Belum ada blok konten. Susun artikel Anda sekarang!</p>
                 </div>
               )}
               {blocks.map((block, index) => (
@@ -331,64 +432,66 @@ export default function AdminBlogDashboard() {
 
                   <div className="flex-1 relative space-y-2">
                     {block.type === 'p' && (
-                      <Textarea 
-                        value={block.value}
-                        onChange={(e) => updateBlock(block.id, { value: e.target.value })}
-                        placeholder="Ketik paragraf di sini..."
-                        rows={4}
-                        className="w-full resize-y border-muted-foreground/20"
-                      />
+                      <Textarea value={block.value} onChange={(e) => updateBlock(block.id, { value: e.target.value })} placeholder="Ketik paragraf..." rows={4} className="w-full resize-y border-muted-foreground/20" />
                     )}
                     {(block.type === 'h2' || block.type === 'h3' || block.type === 'h4') && (
-                      <Input 
-                        value={block.value}
-                        onChange={(e) => updateBlock(block.id, { value: e.target.value })}
-                        placeholder={`Ketik judul ${block.type.toUpperCase()} di sini...`}
-                        className={`w-full font-bold border-muted-foreground/20 ${block.type === 'h2' ? 'text-xl' : block.type === 'h3' ? 'text-lg' : 'text-base'}`}
-                      />
+                      <Input value={block.value} onChange={(e) => updateBlock(block.id, { value: e.target.value })} placeholder={`Ketik judul ${block.type.toUpperCase()}...`} className={`w-full font-bold border-muted-foreground/20 ${block.type === 'h2' ? 'text-xl' : 'text-lg'}`} />
                     )}
                     {block.type === 'ul' && (
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase">Setiap baris baru akan menjadi poin (bullet point)</p>
-                        <Textarea 
-                          value={block.value}
-                          onChange={(e) => updateBlock(block.id, { value: e.target.value })}
-                          placeholder="Poin 1&#10;Poin 2&#10;Poin 3..."
-                          rows={4}
-                          className="w-full resize-y font-mono text-sm border-muted-foreground/20"
-                        />
+                      <Textarea value={block.value} onChange={(e) => updateBlock(block.id, { value: e.target.value })} placeholder="Poin 1&#10;Poin 2..." rows={4} className="w-full resize-y font-mono text-sm border-muted-foreground/20" />
+                    )}
+                    {block.type === 'image' && (
+                      <div className="space-y-3 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                        <div>
+                          <Label className="text-xs text-blue-800">URL Gambar</Label>
+                          <Input value={block.value} onChange={(e) => updateBlock(block.id, { value: e.target.value })} placeholder="https://..." />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-blue-800">Alt Text (Untuk SEO)</Label>
+                          <Input value={block.alt || ''} onChange={(e) => updateBlock(block.id, { alt: e.target.value })} placeholder="Deskripsi gambar..." />
+                        </div>
+                        {block.value && <img src={block.value} alt="Preview" className="max-h-32 rounded border object-contain bg-white" />}
+                      </div>
+                    )}
+                    {block.type === 'table' && (
+                      <div className="space-y-3 bg-green-50/50 p-3 rounded-lg border border-green-100 overflow-x-auto">
+                        <div className="flex gap-2 mb-2">
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addTableRow(block.id)}>+ Baris</Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addTableCol(block.id)}>+ Kolom</Button>
+                        </div>
+                        <table className="w-full text-sm border-collapse">
+                          <tbody>
+                            {block.rows?.map((row, rIndex) => (
+                              <tr key={rIndex}>
+                                {row.map((col, cIndex) => (
+                                  <td key={cIndex} className="border p-1 min-w-[120px]">
+                                    <Input 
+                                      className={`h-8 text-xs ${rIndex === 0 ? 'font-bold bg-muted/50' : ''}`}
+                                      value={col} 
+                                      onChange={(e) => updateTableData(block.id, rIndex, cIndex, e.target.value)} 
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                     {block.type === 'faq' && (
                       <div className="space-y-3 bg-card p-3 rounded-lg border border-dashed">
                         <div>
                           <Label className="text-xs">Pertanyaan (Q)</Label>
-                          <Input 
-                            value={block.question || ''}
-                            onChange={(e) => updateBlock(block.id, { question: e.target.value })}
-                            placeholder="Tulis pertanyaan..."
-                            className="w-full font-medium"
-                          />
+                          <Input value={block.question || ''} onChange={(e) => updateBlock(block.id, { question: e.target.value })} placeholder="Tulis pertanyaan..." className="font-medium" />
                         </div>
                         <div>
                           <Label className="text-xs">Jawaban (A)</Label>
-                          <Textarea 
-                            value={block.answer || ''}
-                            onChange={(e) => updateBlock(block.id, { answer: e.target.value })}
-                            placeholder="Tulis jawaban lengkap..."
-                            rows={3}
-                            className="w-full"
-                          />
+                          <Textarea value={block.answer || ''} onChange={(e) => updateBlock(block.id, { answer: e.target.value })} placeholder="Tulis jawaban..." rows={2} />
                         </div>
                       </div>
                     )}
 
-                    <Button 
-                      variant="destructive" 
-                      size="icon" 
-                      className="absolute -right-3 -top-3 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full shadow-sm"
-                      onClick={() => removeBlock(block.id)}
-                    >
+                    <Button variant="destructive" size="icon" className="absolute -right-3 -top-3 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full shadow-sm" onClick={() => removeBlock(block.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -407,9 +510,7 @@ export default function AdminBlogDashboard() {
             <div className="bg-background rounded-xl p-4 border space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold">Total Kata</span>
-                <span className="text-sm font-medium text-muted-foreground">
-                  Target: {targetWords}
-                </span>
+                <span className="text-sm font-medium text-muted-foreground">Target: {targetWords}</span>
               </div>
               <div className="flex items-end gap-2">
                 <span className={`text-3xl font-display font-bold ${wordCount >= targetWords ? 'text-green-500' : 'text-primary'}`}>
@@ -417,36 +518,24 @@ export default function AdminBlogDashboard() {
                 </span>
                 <span className="text-sm text-muted-foreground pb-1">kata</span>
               </div>
-              
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-500 ${wordCount >= targetWords ? 'bg-green-500' : 'bg-primary'}`} 
-                  style={{ width: `${Math.min((wordCount / targetWords) * 100, 100)}%` }}
-                />
+                <div className={`h-full transition-all duration-500 ${wordCount >= targetWords ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${Math.min((wordCount / targetWords) * 100, 100)}%` }} />
               </div>
-              
               {wordCount >= targetWords && (
-                <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Target tercapai! Konten optimal.
-                </div>
-              )}
-              {wordCount < targetWords && (
-                <div className="text-[10px] text-muted-foreground text-center">
-                  Butuh {targetWords - wordCount} kata lagi untuk mencapai target.
-                </div>
+                <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Target tercapai!</div>
               )}
             </div>
 
-            {/* Generated JSON */}
+            {/* Generated JSON Preview */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">Generated JSON</h3>
-                <Button size="sm" onClick={handleCopy} className="gap-2">
-                  <Copy className="w-4 h-4" /> Copy Code
+                <h3 className="font-bold">Generated Data (Preview)</h3>
+                <Button size="sm" onClick={handleCopy} variant="outline" className="gap-2">
+                  <Copy className="w-4 h-4" /> Copy
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground mb-4 leading-relaxed">
-                Buat file baru bernama <code className="bg-muted px-1 py-0.5 rounded text-foreground">{slug || "judul"}.json</code> di dalam folder data blog Anda, lalu paste kode di bawah.
+              <p className="text-[10px] text-muted-foreground mb-4">
+                Klik tombol <strong className="text-foreground">Publish / Save ke Hosting</strong> di header atas untuk otomatis membuat/menimpa file <code className="bg-muted px-1 rounded text-foreground">{slug || "..."}.json</code> di server Anda (src/data/blog/).
               </p>
               <div className="bg-zinc-950 rounded-xl p-4 overflow-x-auto max-h-[400px]">
                 <pre className="text-[10px] text-green-400 font-mono leading-relaxed">
