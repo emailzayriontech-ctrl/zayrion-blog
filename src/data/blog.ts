@@ -5,15 +5,20 @@ import path from 'path';
 const blogDirectory = path.join(process.cwd(), 'src/data/blog');
 
 // Interface standar untuk struktur data blog Anda
-// (Silakan sesuaikan field-nya dengan struktur JSON asli Anda)
 export interface BlogPost {
+  id?: number;
   slug: string;
   title: string;
   date: string;
-  excerpt: string;
+  excerpt: string; // Diambil dari metaDescription atau featuredSnippet
   content: string;
-  coverImage?: string;
+  coverImage?: string; // Diambil dari featuredImage
   category?: string;
+  status?: string;
+  author?: string;
+  schemas?: any;
+  metaTitle?: string;
+  canonicalUrl?: string;
 }
 
 // 1. Fungsi untuk mengambil semua data blog
@@ -37,11 +42,19 @@ export function getAllPosts(): BlogPost[] {
       return {
         slug,
         ...data,
+        // Map new fields from Phase 2 editor to legacy interface
+        excerpt: data.metaDescription || data.featuredSnippet || data.excerpt || "",
+        coverImage: data.featuredImage || data.coverImage || "",
       } as BlogPost;
-    });
+    })
+    // Pastikan HANYA menampilkan yang statusnya Published
+    .filter(post => !post.status || post.status === "Published");
 
-  // Urutkan blog berdasarkan tanggal terbaru
-  return allPostsData.sort((a, b) => (a.date < b.date ? 1 : -1));
+  // Urutkan blog berdasarkan id (timestamp) atau tanggal terbaru
+  return allPostsData.sort((a, b) => {
+    if (a.id && b.id) return b.id - a.id;
+    return a.date < b.date ? 1 : -1;
+  });
 }
 
 // 2. Fungsi untuk mengambil satu data blog berdasarkan slug
@@ -56,6 +69,8 @@ export function getPostBySlug(slug: string): BlogPost | null {
     return {
       slug,
       ...data,
+      excerpt: data.metaDescription || data.featuredSnippet || data.excerpt || "",
+      coverImage: data.featuredImage || data.coverImage || "",
     } as BlogPost;
   } catch (error) {
     return null;
