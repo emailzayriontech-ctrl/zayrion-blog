@@ -85,6 +85,30 @@ function EditorForm() {
         .catch(() => toast.error("Gagal memuat artikel"))
         .finally(() => setIsLoaded(true));
     } else {
+      // Cek apakah ada draft lokal yang tersimpan saat tab tertutup
+      const localDraft = localStorage.getItem("zayrion_editor_draft");
+      if (localDraft) {
+        try {
+          const b = JSON.parse(localDraft);
+          if (b.title || (b.rawBlocks && b.rawBlocks.length > 0)) {
+            setCategory(b.category || "blog");
+            setTitle(b.title || "");
+            setSlug(b.slug || "");
+            setStatus(b.status || "Draft");
+            setAuthor(b.author || "Admin");
+            setMetaTitle(b.metaTitle || "");
+            setMetaDescription(b.metaDescription || "");
+            setTargetLocation(b.targetLocation || "");
+            setFeaturedSnippet(b.featuredSnippet || "");
+            setFocusKeyword(b.focusKeyword || "");
+            setCanonicalUrl(b.canonicalUrl || "");
+            setFeaturedImage(b.featuredImage || "");
+            setBrandName(b.brandName || "Zayrion Tech");
+            if (b.rawBlocks) setBlocks(b.rawBlocks);
+            setTimeout(() => toast.success("Draft Anda yang belum tersimpan berhasil dipulihkan!"), 500);
+          }
+        } catch (e) {}
+      }
       setIsLoaded(true);
     }
   }, [editSlug]);
@@ -255,6 +279,18 @@ function EditorForm() {
     return data;
   };
 
+  // LocalStorage Auto-save for unsaved drafts (when browser closes)
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    // Jangan simpan ke local draft jika ini adalah artikel yang sudah jadi (edit mode)
+    if (editSlug) return;
+
+    // Simpan ke localStorage setiap ada perubahan (untuk backup jika tab ter-close)
+    const draftData = generateDataObj();
+    localStorage.setItem("zayrion_editor_draft", JSON.stringify(draftData));
+  }, [category, title, slug, status, author, metaTitle, metaDescription, targetLocation, featuredSnippet, focusKeyword, canonicalUrl, featuredImage, brandName, blocks, isLoaded]);
+
   const generateJSONCode = () => {
     return JSON.stringify(generateDataObj(), null, 2);
   };
@@ -276,7 +312,11 @@ function EditorForm() {
       
       if (res.ok) {
         setLastSaved(new Date().toLocaleTimeString());
-        if (!isAutoSave) toast.success("Berhasil disimpan ke server (Hosting)!");
+        if (!isAutoSave) {
+          toast.success("Berhasil disimpan ke server (Hosting)!");
+          // Hapus local draft jika tulisan baru berhasil disave manual ke server
+          if (!editSlug) localStorage.removeItem("zayrion_editor_draft");
+        }
       } else {
         if (!isAutoSave) toast.error("Gagal menyimpan: " + result.error);
       }
