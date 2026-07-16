@@ -28,8 +28,8 @@ export async function POST(request: Request) {
     `;
 
     return NextResponse.json({ success: true, message: 'Saved successfully to Database' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving blog data to DB:', error);
-    return NextResponse.json({ error: 'Failed to save data to database' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to save data: ${error.message}` }, { status: 500 });
   }
 }
