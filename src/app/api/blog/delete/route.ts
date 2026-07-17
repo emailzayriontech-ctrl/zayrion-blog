@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
-
-const pool = new Pool({ 
-  connectionString: process.env.POSTGRES_URL,
-  ssl: process.env.POSTGRES_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
-});
+import { pool } from '@/data/db';
 
 export async function DELETE(request: Request) {
   let client;
