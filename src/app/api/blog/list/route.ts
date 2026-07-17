@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 export async function GET() {
+  let client;
   try {
-    const result = await sql`SELECT data FROM blogs`;
+    client = await pool.connect();
+    const result = await client.query('SELECT data FROM blogs');
     
     const blogs = result.rows.map(row => {
       const data = row.data;
@@ -27,6 +31,8 @@ export async function GET() {
       return NextResponse.json({ blogs: [] });
     }
     console.error('Error fetching blog list from DB:', error);
-    return NextResponse.json({ error: 'Failed to fetch blogs' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to fetch blogs: ${error.message}` }, { status: 500 });
+  } finally {
+    if (client) client.release();
   }
 }

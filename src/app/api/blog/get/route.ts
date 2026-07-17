@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 export async function GET(request: Request) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
@@ -10,7 +13,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
     }
 
-    const result = await sql`SELECT data FROM blogs WHERE slug = ${slug}`;
+    client = await pool.connect();
+    const result = await client.query('SELECT data FROM blogs WHERE slug = $1', [slug]);
     
     if (result.rowCount === 0) {
       return NextResponse.json({ error: 'Blog not found' }, { status: 404 });
@@ -22,6 +26,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Blog not found' }, { status: 404 });
     }
     console.error('Error fetching blog from DB:', error);
-    return NextResponse.json({ error: 'Failed to fetch blog' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to fetch blog: ${error.message}` }, { status: 500 });
+  } finally {
+    if (client) client.release();
   }
 }

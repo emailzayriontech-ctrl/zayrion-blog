@@ -1,4 +1,6 @@
-import { sql } from '@vercel/postgres';
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 
 export interface BlogPost {
   id?: number;
@@ -18,8 +20,10 @@ export interface BlogPost {
 
 // 1. Fungsi untuk mengambil semua data blog dari Database
 export async function getAllPosts(): Promise<BlogPost[]> {
+  let client;
   try {
-    const result = await sql`SELECT data FROM blogs`;
+    client = await pool.connect();
+    const result = await client.query('SELECT data FROM blogs');
     
     const allPostsData = result.rows
       .map((row) => {
@@ -45,13 +49,17 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     }
     console.error("Error fetching all posts:", error);
     return [];
+  } finally {
+    if (client) client.release();
   }
 }
 
 // 2. Fungsi untuk mengambil satu data blog berdasarkan slug dari Database
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
+  let client;
   try {
-    const result = await sql`SELECT data FROM blogs WHERE slug = ${slug}`;
+    client = await pool.connect();
+    const result = await client.query('SELECT data FROM blogs WHERE slug = $1', [slug]);
     
     if (result.rowCount === 0) return null;
     
@@ -65,5 +73,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     } as BlogPost;
   } catch (error: any) {
     return null;
+  } finally {
+    if (client) client.release();
   }
 }
