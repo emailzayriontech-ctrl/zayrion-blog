@@ -6,6 +6,8 @@ import { getAllPosts, getPostBySlug } from "@/data/blog";
 import Link from "next/link";
 import Script from "next/script";
 
+export const dynamic = 'force-dynamic';
+
 type Props = {
   params: { slug: string }
 };

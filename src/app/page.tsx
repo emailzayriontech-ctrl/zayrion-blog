@@ -4,6 +4,8 @@ import { getAllPosts } from "@/data/blog";
 import Link from "next/link";
 import Image from "next/image";
 
+export const dynamic = 'force-dynamic';
+
 export default async function BlogList() {
   const articles = await getAllPosts();
   return (
