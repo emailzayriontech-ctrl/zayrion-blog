@@ -12,8 +12,9 @@ import Link from "next/link";
 
 type ContentBlock = {
   id: string;
-  type: "h2" | "h3" | "h4" | "p" | "ul" | "faq" | "image" | "table";
+  type: "h2" | "h3" | "h4" | "p" | "ul" | "faq" | "image" | "table" | "button";
   value: string;
+  url?: string;
   question?: string;
   answer?: string;
   alt?: string;
@@ -142,6 +143,9 @@ function EditorForm() {
     if (type === "table") {
       newBlock.rows = [["Header 1", "Header 2"], ["Data 1", "Data 2"]];
     }
+    if (type === "button") {
+      newBlock.url = "";
+    }
     setBlocks([...blocks, newBlock]);
   };
 
@@ -219,6 +223,9 @@ function EditorForm() {
       }
       if (b.type === "faq" && b.question?.trim() && b.answer?.trim()) {
         return `      <details class="faq-item">\n        <summary>${b.question}</summary>\n        <div class="faq-content">\n          <p>${b.answer}</p>\n        </div>\n      </details>`;
+      }
+      if (b.type === "button" && b.value.trim() && b.url?.trim()) {
+        return `      <div class="cta-container">\n        <a href="${b.url}" class="cta-button" target="_blank" rel="noopener noreferrer">${b.value}</a>\n      </div>`;
       }
       if (b.type === "image" && b.value.trim()) {
         return `      <figure>\n        <img src="${b.value}" alt="${b.alt || 'Image'}" class="w-full h-auto rounded-xl" />\n      </figure>`;
@@ -490,10 +497,11 @@ function EditorForm() {
                 <Button size="sm" variant="outline" onClick={() => addBlock("h2")}>+ H2</Button>
                 <Button size="sm" variant="outline" onClick={() => addBlock("h3")}>+ H3</Button>
                 <Button size="sm" variant="default" onClick={() => addBlock("p")}>+ Teks</Button>
-                <Button size="sm" variant="outline" onClick={() => addBlock("ul")} className="bg-zinc-100 dark:bg-zinc-800">+ List</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("ul")}>+ List</Button>
                 <Button size="sm" variant="outline" onClick={() => addBlock("image")} className="border-blue-500 text-blue-600 hover:bg-blue-50">+ Gambar</Button>
                 <Button size="sm" variant="outline" onClick={() => addBlock("table")} className="border-green-500 text-green-600 hover:bg-green-50">+ Tabel</Button>
                 <Button size="sm" variant="outline" onClick={() => addBlock("faq")} className="border-primary/50 text-primary hover:bg-primary/10">+ FAQ</Button>
+                <Button size="sm" variant="outline" onClick={() => addBlock("button")} className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">+ Tombol</Button>
               </div>
             </div>
 
@@ -511,9 +519,22 @@ function EditorForm() {
                     <button onClick={() => moveBlock(index, "down")} disabled={index === blocks.length - 1} className="disabled:opacity-20 hover:text-primary">↓</button>
                   </div>
                   
-                  <div className="w-12 shrink-0 pt-2 text-[10px] font-bold text-primary/70 uppercase text-center bg-primary/5 h-min px-1 py-1 rounded">
-                    {block.type}
-                  </div>
+                  <select 
+                    value={block.type} 
+                    onChange={(e) => updateBlock(block.id, { type: e.target.value as any })}
+                    className="w-16 shrink-0 text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 rounded px-1 py-1.5 outline-none cursor-pointer hover:bg-primary/20 transition-colors uppercase appearance-none text-center font-display"
+                    title="Ubah tipe blok"
+                  >
+                    <option value="p" className="bg-background text-foreground">P</option>
+                    <option value="h2" className="bg-background text-foreground">H2</option>
+                    <option value="h3" className="bg-background text-foreground">H3</option>
+                    <option value="h4" className="bg-background text-foreground">H4</option>
+                    <option value="ul" className="bg-background text-foreground">List</option>
+                    <option value="image" className="bg-background text-foreground">Gbr</option>
+                    <option value="table" className="bg-background text-foreground">Tbl</option>
+                    <option value="faq" className="bg-background text-foreground">FAQ</option>
+                    <option value="button" className="bg-background text-foreground">Btn</option>
+                  </select>
 
                   <div className="flex-1 relative space-y-2">
                     {block.type === 'p' && (
@@ -575,6 +596,20 @@ function EditorForm() {
                         </div>
                       </div>
                     )}
+                    {block.type === 'button' && (
+                      <div className="space-y-3 bg-zinc-950/40 p-3 rounded-lg border border-primary/20">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-primary-glow font-bold">Teks Tombol</Label>
+                            <Input value={block.value} onChange={(e) => updateBlock(block.id, { value: e.target.value })} placeholder="Daftar Sekarang..." />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-primary-glow font-bold">Link URL (Tujuan)</Label>
+                            <Input value={block.url || ''} onChange={(e) => updateBlock(block.id, { url: e.target.value })} placeholder="https://..." />
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="absolute -right-3 -top-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
                       <Button variant="outline" size="icon" className="h-8 w-8 rounded-full shadow-sm bg-background border-muted-foreground/30 text-muted-foreground hover:text-primary hover:border-primary/50" onClick={() => duplicateBlock(index)} title="Duplikat Blok">
@@ -594,10 +629,11 @@ function EditorForm() {
                     <Button size="sm" variant="outline" onClick={() => addBlock("h2")}>+ H2</Button>
                     <Button size="sm" variant="outline" onClick={() => addBlock("h3")}>+ H3</Button>
                     <Button size="sm" variant="default" onClick={() => addBlock("p")}>+ Teks</Button>
-                    <Button size="sm" variant="outline" onClick={() => addBlock("ul")} className="bg-zinc-100 dark:bg-zinc-800">+ List</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("ul")}>+ List</Button>
                     <Button size="sm" variant="outline" onClick={() => addBlock("image")} className="border-blue-500 text-blue-600 hover:bg-blue-50">+ Gambar</Button>
                     <Button size="sm" variant="outline" onClick={() => addBlock("table")} className="border-green-500 text-green-600 hover:bg-green-50">+ Tabel</Button>
                     <Button size="sm" variant="outline" onClick={() => addBlock("faq")} className="border-primary/50 text-primary hover:bg-primary/10">+ FAQ</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("button")} className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">+ Tombol</Button>
                   </div>
                 </div>
               )}

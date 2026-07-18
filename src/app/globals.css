@@ -291,6 +291,32 @@
   margin-bottom: 0 !important;
 }
 
+/* CTA Button Styling */
+.prose .cta-container {
+  display: flex !important;
+  justify-content: center !important;
+  margin: 2.5rem 0 !important;
+}
+
+.prose .cta-button {
+  background-color: hsl(var(--primary)) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  padding: 0.875rem 2rem !important;
+  border-radius: 9999px !important;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px 0 rgba(0, 118, 255, 0.39) !important;
+  transition: all 0.3s ease !important;
+  font-size: 1.0625rem !important;
+  display: inline-block !important;
+}
+
+.prose .cta-button:hover {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.1) !important;
+  box-shadow: 0 6px 20px rgba(0, 118, 255, 0.5) !important;
+}
+
 
 
 
