@@ -199,24 +199,24 @@ function EditorForm() {
         return `      <ul>\n${listItems}\n      </ul>`;
       }
       if (b.type === "faq" && b.question?.trim() && b.answer?.trim()) {
-        return `      <div className="faq-item">\n        <h4>${b.question}</h4>\n        <p>${b.answer}</p>\n      </div>`;
+        return `      <div class="faq-item">\n        <h4>${b.question}</h4>\n        <p>${b.answer}</p>\n      </div>`;
       }
       if (b.type === "image" && b.value.trim()) {
-        return `      <figure>\n        <img src="${b.value}" alt="${b.alt || 'Image'}" className="w-full h-auto rounded-xl" />\n      </figure>`;
+        return `      <figure>\n        <img src="${b.value}" alt="${b.alt || 'Image'}" class="w-full h-auto rounded-xl" />\n      </figure>`;
       }
       if (b.type === "table" && b.rows && b.rows.length > 0) {
         const header = b.rows[0];
         const body = b.rows.slice(1);
-        let tableHtml = `      <div className="overflow-x-auto my-6">\n        <table className="w-full text-left border-collapse">\n`;
+        let tableHtml = `      <div class="overflow-x-auto my-6">\n        <table class="w-full text-left border-collapse">\n`;
         if (header.length > 0) {
-          tableHtml += `          <thead>\n            <tr className="bg-muted">\n`;
-          header.forEach(h => { tableHtml += `              <th className="border p-3 font-bold">${h}</th>\n` });
+          tableHtml += `          <thead>\n            <tr class="bg-muted">\n`;
+          header.forEach(h => { tableHtml += `              <th class="border p-3 font-bold">${h}</th>\n` });
           tableHtml += `            </tr>\n          </thead>\n`;
         }
         tableHtml += `          <tbody>\n`;
         body.forEach(row => {
           tableHtml += `            <tr>\n`;
-          row.forEach(col => { tableHtml += `              <td className="border p-3">${col}</td>\n` });
+          row.forEach(col => { tableHtml += `              <td class="border p-3">${col}</td>\n` });
           tableHtml += `            </tr>\n`;
         });
         tableHtml += `          </tbody>\n        </table>\n      </div>`;
