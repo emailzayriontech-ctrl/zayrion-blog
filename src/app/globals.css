@@ -200,32 +200,97 @@
   font-weight: 700 !important;
 }
 
-/* FAQ Item Styling */
-.prose .faq-item, .prose div[classname="faq-item"] {
+/* FAQ Accordion Styling (using details & summary) */
+.prose details.faq-item {
   background-color: hsl(var(--card)) !important;
   border: 1px solid hsl(var(--border)) !important;
-  border-radius: 1rem !important;
-  padding: 1.5rem !important;
-  margin: 2rem 0 !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 0.75rem !important;
+  margin: 1rem 0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-.prose .faq-item h4, .prose div[classname="faq-item"] h4 {
-  font-size: 1.25rem !important; /* 20px */
-  color: hsl(var(--primary)) !important;
+.prose details.faq-item:hover {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.prose details.faq-item summary {
+  padding: 1.25rem 1.5rem !important;
+  font-size: 1.125rem !important; /* 18px */
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  list-style: none !important;
+  outline: none !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  user-select: none !important;
+}
+
+/* Hide default disclosure triangle */
+.prose details.faq-item summary::-webkit-details-marker {
+  display: none !important;
+}
+
+/* Custom chevron icon */
+.prose details.faq-item summary::after {
+  content: "" !important;
+  width: 0.5rem !important;
+  height: 0.5rem !important;
+  border-right: 2px solid rgba(255, 255, 255, 0.5) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.5) !important;
+  transform: rotate(45deg) translateY(-2px) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease !important;
+  margin-right: 0.5rem !important;
+  display: inline-block !important;
+}
+
+.prose details.faq-item[open] summary::after {
+  transform: rotate(-135deg) translateY(-2px) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* Content inside accordion */
+.prose details.faq-item .faq-content {
+  padding: 0 1.5rem 1.25rem 1.5rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  background-color: rgba(255, 255, 255, 0.01) !important;
+}
+
+.prose details.faq-item .faq-content p {
+  font-size: 0.975rem !important; /* 15px */
+  color: rgba(255, 255, 255, 0.75) !important;
+  line-height: 1.6 !important;
+  margin-top: 1rem !important;
+  margin-bottom: 0 !important;
+  display: block;
+}
+
+/* Backward compatibility for old div-based FAQ */
+.prose div.faq-item, .prose div[classname="faq-item"] {
+  background-color: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 0.75rem !important;
+  padding: 1.5rem !important;
+  margin: 1.5rem 0 !important;
+}
+.prose div.faq-item h4, .prose div[classname="faq-item"] h4 {
+  font-size: 1.125rem !important;
+  color: #ffffff !important;
   margin-top: 0 !important;
-  margin-bottom: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
   font-weight: 700 !important;
   display: block;
 }
-
-.prose .faq-item p, .prose div[classname="faq-item"] p {
-  font-size: 0.975rem !important; /* 15px */
-  color: rgba(255, 255, 255, 0.75) !important;
+.prose div.faq-item p, .prose div[classname="faq-item"] p {
+  font-size: 0.975rem !important;
+  color: rgba(255, 255, 255, 0.7) !important;
   margin-bottom: 0 !important;
-  line-height: 1.6 !important;
-  display: block;
 }
+
 
 
 

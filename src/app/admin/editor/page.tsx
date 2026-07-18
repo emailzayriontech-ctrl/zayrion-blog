@@ -199,7 +199,7 @@ function EditorForm() {
         return `      <ul>\n${listItems}\n      </ul>`;
       }
       if (b.type === "faq" && b.question?.trim() && b.answer?.trim()) {
-        return `      <div class="faq-item">\n        <h4>${b.question}</h4>\n        <p>${b.answer}</p>\n      </div>`;
+        return `      <details class="faq-item">\n        <summary>${b.question}</summary>\n        <div class="faq-content">\n          <p>${b.answer}</p>\n        </div>\n      </details>`;
       }
       if (b.type === "image" && b.value.trim()) {
         return `      <figure>\n        <img src="${b.value}" alt="${b.alt || 'Image'}" class="w-full h-auto rounded-xl" />\n      </figure>`;
