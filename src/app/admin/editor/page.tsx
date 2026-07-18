@@ -175,6 +175,25 @@ function EditorForm() {
 
   const removeBlock = (id: string) => setBlocks(blocks.filter(b => b.id !== id));
 
+  const duplicateBlock = (index: number) => {
+    const blockToDuplicate = blocks[index];
+    
+    // Deep copy values (especially for tables where rows is string[][])
+    const newBlock: ContentBlock = {
+      ...blockToDuplicate,
+      id: Math.random().toString(36).substr(2, 9),
+    };
+    
+    if (blockToDuplicate.rows) {
+      newBlock.rows = blockToDuplicate.rows.map(row => [...row]);
+    }
+    
+    const newBlocks = [...blocks];
+    newBlocks.splice(index + 1, 0, newBlock);
+    setBlocks(newBlocks);
+    toast.success("Blok berhasil diduplikat!");
+  };
+
   const moveBlock = (index: number, direction: "up" | "down") => {
     if (direction === "up" && index > 0) {
       const newBlocks = [...blocks];
@@ -557,12 +576,31 @@ function EditorForm() {
                       </div>
                     )}
 
-                    <Button variant="destructive" size="icon" className="absolute -right-3 -top-3 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full shadow-sm" onClick={() => removeBlock(block.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="absolute -right-3 -top-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full shadow-sm bg-background border-muted-foreground/30 text-muted-foreground hover:text-primary hover:border-primary/50" onClick={() => duplicateBlock(index)} title="Duplikat Blok">
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full shadow-sm" onClick={() => removeBlock(block.id)} title="Hapus Blok">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
+              {blocks.length > 0 && (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between mt-8 pt-6 border-t border-dashed">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tambah Blok Baru:</span>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => addBlock("h2")}>+ H2</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("h3")}>+ H3</Button>
+                    <Button size="sm" variant="default" onClick={() => addBlock("p")}>+ Teks</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("ul")} className="bg-zinc-100 dark:bg-zinc-800">+ List</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("image")} className="border-blue-500 text-blue-600 hover:bg-blue-50">+ Gambar</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("table")} className="border-green-500 text-green-600 hover:bg-green-50">+ Tabel</Button>
+                    <Button size="sm" variant="outline" onClick={() => addBlock("faq")} className="border-primary/50 text-primary hover:bg-primary/10">+ FAQ</Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
