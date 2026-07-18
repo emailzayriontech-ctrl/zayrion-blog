@@ -9,7 +9,7 @@ import Script from "next/script";
 export const dynamic = 'force-dynamic';
 
 type Props = {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 };
 
 export async function generateStaticParams() {
@@ -23,7 +23,8 @@ export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const article = await getPostBySlug(params.slug);
+  const resolvedParams = await params;
+  const article = await getPostBySlug(resolvedParams.slug);
   
   if (!article) return { title: 'Not Found' };
   
@@ -53,7 +54,8 @@ export async function generateMetadata(
 }
 
 export default async function BlogPost({ params }: Props) {
-  const article = await getPostBySlug(params.slug);
+  const resolvedParams = await params;
+  const article = await getPostBySlug(resolvedParams.slug);
 
   if (!article) {
     notFound();
