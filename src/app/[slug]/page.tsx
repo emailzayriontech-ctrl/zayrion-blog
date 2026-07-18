@@ -28,27 +28,41 @@ export async function generateMetadata(
   
   if (!article) return { title: 'Not Found' };
   
+  const ogImageUrl = article.coverImage && article.coverImage.startsWith('http')
+    ? article.coverImage
+    : "https://zayriontech.com/favicon.svg";
+
+  const canonicalUrl = article.canonicalUrl && article.canonicalUrl.startsWith('http')
+    ? article.canonicalUrl
+    : `https://blog.zayriontech.com/${article.slug}`;
+  
   return {
     title: article.metaTitle || article.title,
     description: article.excerpt,
     alternates: {
-      canonical: article.canonicalUrl || `https://blog.zayriontech.com/${article.slug}`,
+      canonical: canonicalUrl,
     },
     openGraph: {
       title: article.metaTitle || article.title,
       description: article.excerpt,
       url: `https://blog.zayriontech.com/${article.slug}`,
       siteName: 'Zayrion Tech',
-      images: article.coverImage ? [
+      images: [
         {
-          url: article.coverImage,
+          url: ogImageUrl,
           width: 1200,
           height: 630,
-        },
-      ] : [],
+        }
+      ],
       type: 'article',
       publishedTime: article.date,
       authors: [article.author || 'Admin'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.metaTitle || article.title,
+      description: article.excerpt,
+      images: [ogImageUrl],
     }
   };
 }
@@ -61,8 +75,31 @@ export default async function BlogPost({ params }: Props) {
     notFound();
   }
 
-  // Menyatukan schema FAQ dan LocalBusiness jika ada
-  let jsonLdSchemas = [];
+  // Schema Dasar: BlogPosting / Article (JSON-LD)
+  let jsonLdSchemas: any[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "headline": article.metaTitle || article.title,
+      "description": article.excerpt,
+      "image": article.coverImage && article.coverImage.startsWith('http') ? [article.coverImage] : ["https://zayriontech.com/favicon.svg"],
+      "datePublished": article.date,
+      "author": {
+        "@type": "Person",
+        "name": article.author || "Admin"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Zayrion Tech",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://zayriontech.com/favicon.svg"
+        }
+      }
+    }
+  ];
+
+  // Menyatukan schema FAQ dan LocalBusiness tambahan jika ada
   if (article.schemas) {
     if (article.schemas.faq) {
       jsonLdSchemas.push({
