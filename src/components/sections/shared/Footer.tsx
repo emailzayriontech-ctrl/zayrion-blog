@@ -70,18 +70,18 @@ export const Footer = () => {
             <div className="space-y-5">
               <h4 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] opacity-50">Quick Links</h4>
               <ul className="space-y-3 text-sm">
-                <li><a href="/" className="footer-link">Home</a></li>
-                <li><a href="/pricing" className="footer-link">Pricing</a></li>
-                <li><a href="/portfolio" className="footer-link">Work</a></li>
-                <li><a href="/blog" className="footer-link">Blog</a></li>
+                <li><a href="https://zayriontech.com/" className="footer-link">Home</a></li>
+                <li><a href="https://zayriontech.com/#pricing" className="footer-link">Pricing</a></li>
+                <li><a href="https://zayriontech.com/#portfolio" className="footer-link">Work</a></li>
+                <li><a href="/" className="footer-link">Blog</a></li>
               </ul>
             </div>
             <div className="space-y-5">
               <h4 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] opacity-50">Services</h4>
               <ul className="space-y-3 text-sm">
-                <li><a href="#solution" className="footer-link">Website</a></li>
-                <li><a href="#system" className="footer-link">System</a></li>
-                <li><a href="#" className="footer-link">Redesign</a></li>
+                <li><a href="https://zayriontech.com/#solution" className="footer-link">Website</a></li>
+                <li><a href="https://zayriontech.com/#system" className="footer-link">System</a></li>
+                <li><a href="https://zayriontech.com/" className="footer-link">Redesign</a></li>
               </ul>
             </div>
             <div className="space-y-5 col-span-2 md:col-span-1">

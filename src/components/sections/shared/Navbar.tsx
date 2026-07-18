@@ -12,11 +12,12 @@ export const Navbar = () => {
   const pathname = usePathname();
 
   const links = [
-    { label: t('navbar.home'), href: "/" },
-    { label: t('navbar.pricing'), href: "/pricing" },
-    { label: t('navbar.portfolio'), href: "/portfolio" },
-    { label: t('navbar.blog'), href: "/blog" },
-    { label: t('navbar.contact'), href: "/contact" },
+    { label: "Beranda", href: "https://zayriontech.com/" },
+    { label: "Tentang Kami", href: "https://zayriontech.com/#about" },
+    { label: "Harga", href: "https://zayriontech.com/#pricing" },
+    { label: "Portofolio", href: "https://zayriontech.com/#portfolio" },
+    { label: "Blog", href: "/" },
+    { label: "Kontak", href: "https://zayriontech.com/#contact" },
   ];
 
   useEffect(() => {
@@ -53,10 +54,10 @@ export const Navbar = () => {
         <div className="flex items-center gap-4">
           {/* <LanguageSwitcher /> */}
           <Link
-            href="/contact"
+            href="https://zayriontech.com/#contact"
             className="hidden md:inline-flex rounded-full border border-primary/60 px-4 py-2 text-sm text-foreground hover:bg-primary/10 transition-colors backdrop-blur"
           >
-            {t('navbar.startProject')}
+            Mulai Proyek
           </Link>
         </div>
       </nav>
