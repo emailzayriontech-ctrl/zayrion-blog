@@ -34,7 +34,7 @@ export async function generateMetadata(
 
   const canonicalUrl = article.canonicalUrl && article.canonicalUrl.startsWith('http')
     ? article.canonicalUrl
-    : `https://blog.zayriontech.com/${article.slug}`;
+    : `https://blog.zayriontech.com/blog/${article.slug}`;
   
   return {
     title: article.metaTitle || article.title,
@@ -45,7 +45,7 @@ export async function generateMetadata(
     openGraph: {
       title: article.metaTitle || article.title,
       description: article.excerpt,
-      url: `https://blog.zayriontech.com/${article.slug}`,
+      url: `https://blog.zayriontech.com/blog/${article.slug}`,
       siteName: 'Zayrion Tech',
       images: [
         {

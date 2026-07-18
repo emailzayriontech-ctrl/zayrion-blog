@@ -5,7 +5,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await getAllPosts();
   
   const articleUrls = articles.map(article => ({
-    url: `https://blog.zayriontech.com/${article.slug}`,
+    url: `https://blog.zayriontech.com/blog/${article.slug}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
     priority: 0.8,
@@ -13,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     {
-      url: 'https://blog.zayriontech.com/',
+      url: 'https://blog.zayriontech.com/blog',
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1.0,
