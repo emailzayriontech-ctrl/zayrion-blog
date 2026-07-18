@@ -83,6 +83,12 @@ export default async function BlogPost({ params }: Props) {
     }
   }
 
+  // Mengubah struktur FAQ lama (div) ke FAQ baru (details/summary) secara otomatis jika ada
+  const processedContent = article.content.replace(
+    /<div class(?:Name)?="faq-item">\s*<h4>(.*?)<\/h4>\s*<p>(.*?)<\/p>\s*<\/div>/gs,
+    `<details class="faq-item"><summary>$1</summary><div class="faq-content"><p>$2</p></div></details>`
+  );
+
   return (
     <>
       {jsonLdSchemas.map((schema, index) => (
@@ -122,7 +128,7 @@ export default async function BlogPost({ params }: Props) {
             
             <div 
               className="prose prose-invert prose-lg max-w-none prose-headings:font-display prose-headings:font-bold prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:border"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dangerouslySetInnerHTML={{ __html: processedContent }}
             />
           </div>
         </article>
