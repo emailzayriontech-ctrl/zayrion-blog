@@ -55,7 +55,7 @@ function EditorForm() {
   // Load existing data if editing
   useEffect(() => {
     if (editSlug) {
-      fetch(`/api/blog/get?slug=${editSlug}`)
+      fetch(`/blog/api/blog/get?slug=${editSlug}`)
         .then(res => res.json())
         .then(data => {
           if (data.blog) {
@@ -329,7 +329,7 @@ function EditorForm() {
       const dataToSave = generateDataObj();
       if (targetStatus) dataToSave.status = targetStatus;
       
-      const res = await fetch('/api/blog/save', {
+      const res = await fetch('/blog/api/blog/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave)

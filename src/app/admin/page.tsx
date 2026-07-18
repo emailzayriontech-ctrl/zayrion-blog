@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   const fetchBlogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/blog/list");
+      const res = await fetch("/blog/api/blog/list");
       const data = await res.json();
       setBlogs(data.blogs || []);
     } catch (err) {
@@ -43,7 +43,7 @@ export default function AdminDashboard() {
   const handleDelete = async (slug: string) => {
     if (!confirm("Yakin ingin menghapus artikel ini?")) return;
     try {
-      const res = await fetch(`/api/blog/delete?slug=${slug}`, { method: "DELETE" });
+      const res = await fetch(`/blog/api/blog/delete?slug=${slug}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
         toast.success(data.message);
